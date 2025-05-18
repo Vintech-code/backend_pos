@@ -13,7 +13,8 @@ Route::post('login', [AuthController::class, 'login']);
 Route::prefix('products')->group(function () {
     Route::get('/history', [ProductController::class, 'history']);
     Route::post('/checkout', [ProductController::class, 'checkout']);
-    Route::apiResource('/', ProductController::class);
+    Route::put('/{product}', [ProductController::class, 'update']); 
+    Route::apiResource('', ProductController::class)->except(['update']); 
 });
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

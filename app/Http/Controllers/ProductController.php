@@ -52,12 +52,10 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
 {
     $validated = $request->validate([
-        'price' => 'required|numeric|min:0',
-        'stock' => 'required|integer|min:0',
+        'price' => 'sometimes|numeric|min:0',
+        'stock' => 'sometimes|integer|min:0',
     ]);
-
     $product->update($validated);
-
     return response()->json($product);
 }
 
