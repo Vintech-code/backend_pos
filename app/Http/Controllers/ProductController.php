@@ -115,5 +115,83 @@ public function history()
     $history = ProductHistory::orderBy('checked_out_at', 'desc')->get();
     return response()->json($history);
 }
+public function report(Request $request)
+{
+    $startDate = $request->input('start_date');
+    $endDate = $request->input('end_date');
 
+    $historyQuery = \App\Models\ProductHistory::query();
+    if ($startDate) {
+        $historyQuery->whereDate('checked_out_at', '>=', $startDate);
+    }
+    if ($endDate) {
+        $historyQuery->whereDate('checked_out_at', '<=', $endDate);
+    }
+    $history = $historyQuery->get();
+
+    $totalSales = $history->sum(function($item) {
+        return $item->price * $item->quantity;
+    });
+    $totalItemsSold = $history->sum('quantity');
+    $averageSaleValue = $history->count() ? $totalSales / $history->count() : 0;
+
+    // Top products
+    $topProducts = $history
+        ->groupBy('product_name')
+        ->map(function($items, $name) {
+            return [
+                'product_name' => $name,
+                'total_quantity' => $items->sum('quantity'),
+                'total_sales' => $items->sum(function($item) {
+                    return $item->price * $item->quantity;
+                }),
+            ];
+        })
+        ->sortByDesc('total_sales')
+        ->values()
+        ->take(5);
+
+    // Sales by date
+    $salesByDate = $history
+        ->groupBy(function($item) {
+            return \Carbon\Carbon::parse($item->checked_out_at)->toDateString();
+        })
+        ->map(function($items, $date) {
+            return [
+                'date' => $date,
+                'total_sales' => $items->sum(function($item) {
+                    return $item->price * $item->quantity;
+                })
+            ];
+        })
+        ->sortBy('date')
+        ->values();
+
+    return response()->json([
+        'totalSales' => $totalSales,
+        'totalItemsSold' => $totalItemsSold,
+        'averageSaleValue' => $averageSaleValue,
+        'topProducts' => $topProducts,
+        'salesByDate' => $salesByDate,
+    ]);
+}
+public function updateVisibility(Request $request, $id)
+{
+    $product = Product::find($id);
+
+    if (!$product) {
+        return response()->json(['message' => 'Product not found'], 404);
+    }
+
+    $product->hidden = $request->input('hidden');
+    $product->save();
+
+    return response()->json(['message' => 'Product visibility updated']);
+}
+
+public function hidden()
+{
+    $hiddenProducts = Product::where('hidden', true)->get();
+    return response()->json($hiddenProducts);
+}
 }
